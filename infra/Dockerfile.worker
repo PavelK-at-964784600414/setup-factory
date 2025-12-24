@@ -1,0 +1,44 @@
+# Build stage
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source
+COPY . .
+
+# Build
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Install Docker CLI for server-run mode
+RUN apk add --no-cache docker-cli
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production
+
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+
+# Create directories
+RUN mkdir -p /app/scripts /app/artifacts /app/logs
+
+# Expose metrics port (optional)
+EXPOSE 9090
+
+# Start worker
+CMD ["node", "dist/worker.js"]

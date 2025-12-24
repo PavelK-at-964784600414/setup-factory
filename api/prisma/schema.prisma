@@ -1,0 +1,86 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  username   String   @unique
+  email      String?  @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  jobs       Job[]
+}
+
+model Script {
+  id             String   @id
+  name           String
+  description    String?
+  repo           String
+  path           String
+  default_runner String   @default("agent")
+  manifest       Json?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  jobs           Job[]
+}
+
+model Job {
+  id          String   @id @default(uuid())
+  script_id   String
+  script      Script   @relation(fields: [script_id], references: [id])
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id])
+  parameters  Json
+  runner      String   // 'agent' or 'server'
+  status      String   @default("pending") // pending, running, success, failed, timeout
+  agent_id    String?
+  agent       Agent?   @relation(fields: [agent_id], references: [id])
+  started_at  DateTime?
+  completed_at DateTime?
+  exit_code   Int?
+  logs        String?  @db.Text
+  artifacts   Json?
+  env_snapshot Json?
+  bundle_path String?
+  jira_issue  String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([status])
+  @@index([created_at])
+  @@index([user_id])
+}
+
+model Agent {
+  id            String   @id @default(uuid())
+  name          String
+  hostname      String
+  status        String   @default("offline") // online, offline
+  last_seen     DateTime?
+  registered_at DateTime @default(now())
+  jobs          Job[]
+
+  @@index([status])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  user_id    String?
+  action     String
+  resource   String?
+  details    Json?
+  ip_address String?
+  user_agent String?
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@index([created_at])
+}

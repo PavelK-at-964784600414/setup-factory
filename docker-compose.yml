@@ -1,0 +1,174 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: setup-factory-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-setupfactory}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-setupfactory}
+      POSTGRES_DB: ${POSTGRES_DB:-setupfactory}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-setupfactory}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - setup-factory
+
+  # Redis (Job Queue & Cache)
+  redis:
+    image: redis:7-alpine
+    container_name: setup-factory-redis
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - setup-factory
+
+  # API Server
+  api:
+    build:
+      context: ./api
+      dockerfile: ../infra/Dockerfile.api
+    container_name: setup-factory-api
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      API_PORT: ${API_PORT:-3001}
+      BITBUCKET_URL: ${BITBUCKET_URL}
+      BITBUCKET_USERNAME: ${BITBUCKET_USERNAME}
+      BITBUCKET_APP_PASSWORD: ${BITBUCKET_APP_PASSWORD}
+      BITBUCKET_WEBHOOK_SECRET: ${BITBUCKET_WEBHOOK_SECRET}
+      JIRA_URL: ${JIRA_URL}
+      JIRA_USERNAME: ${JIRA_USERNAME}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN}
+      JIRA_PROJECT_KEY: ${JIRA_PROJECT_KEY:-REPRO}
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      KRB5_REALM: ${KRB5_REALM}
+      KRB5_KDC: ${KRB5_KDC}
+      OIDC_ENABLED: ${OIDC_ENABLED:-true}
+      OIDC_ISSUER: ${OIDC_ISSUER}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      AGENT_REGISTRATION_SECRET: ${AGENT_REGISTRATION_SECRET}
+      SCRIPTS_REPO_PATH: /app/scripts
+      ARTIFACTS_PATH: /app/artifacts
+      BUNDLES_PATH: /app/bundles
+    ports:
+      - "${API_PORT:-3001}:${API_PORT:-3001}"
+    volumes:
+      - scripts-data:/app/scripts
+      - artifacts-data:/app/artifacts
+      - bundles-data:/app/bundles
+      - ./api:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - setup-factory
+    restart: unless-stopped
+
+  # Worker (Job Queue Processor)
+  worker:
+    build:
+      context: ./worker
+      dockerfile: ../infra/Dockerfile.worker
+    container_name: setup-factory-worker
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+      DOCKER_SOCKET: ${DOCKER_SOCKET:-/var/run/docker.sock}
+      RUNNER_IMAGE: ${RUNNER_IMAGE:-setup-factory/runner:latest}
+      RUNNER_NETWORK: ${RUNNER_NETWORK:-setup-factory}
+      RUNNER_CLEANUP: ${RUNNER_CLEANUP:-true}
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      SCRIPTS_REPO_PATH: /app/scripts
+      ARTIFACTS_PATH: /app/artifacts
+      JOB_TIMEOUT: ${JOB_TIMEOUT:-3600}
+      MAX_LOG_SIZE: ${MAX_LOG_SIZE:-10485760}
+    volumes:
+      - scripts-data:/app/scripts
+      - artifacts-data:/app/artifacts
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./worker:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - setup-factory
+    restart: unless-stopped
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/Dockerfile.frontend
+    container_name: setup-factory-frontend
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3001}
+      PORT: ${FRONTEND_PORT:-3000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    networks:
+      - setup-factory
+    restart: unless-stopped
+
+  # BullMQ Board (Optional - Queue Monitoring UI)
+  bullboard:
+    image: deadly0/bull-board:latest
+    container_name: setup-factory-bullboard
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      BULL_PREFIX: bull
+    ports:
+      - "3002:3000"
+    depends_on:
+      - redis
+    networks:
+      - setup-factory
+    restart: unless-stopped
+
+networks:
+  setup-factory:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  scripts-data:
+  artifacts-data:
+  bundles-data:

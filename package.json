@@ -1,0 +1,35 @@
+{
+  "name": "setup-factory",
+  "version": "1.0.0",
+  "description": "Centralized automation platform for bug reproduction",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:frontend\" \"npm run dev:worker\"",
+    "dev:api": "cd api && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:worker": "cd worker && npm run dev",
+    "build": "npm run build:api && npm run build:frontend && npm run build:worker",
+    "build:api": "cd api && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build:worker": "cd worker && npm run build",
+    "install:all": "npm install && cd api && npm install && cd ../frontend && npm install && cd ../worker && npm install",
+    "db:migrate": "cd api && npx prisma migrate dev",
+    "db:generate": "cd api && npx prisma generate",
+    "db:studio": "cd api && npx prisma studio",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:build": "docker-compose build"
+  },
+  "keywords": [
+    "automation",
+    "reproduction",
+    "debugging",
+    "devops"
+  ],
+  "author": "Your Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

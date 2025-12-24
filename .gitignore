@@ -1,0 +1,52 @@
+.DS_Store
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+
+# Data
+scripts-repo/
+artifacts/
+bundles/
+*.sqlite
+
+# Secrets
+*.keytab
+krb5.conf
+*.pem
+*.key
+!*.key.example

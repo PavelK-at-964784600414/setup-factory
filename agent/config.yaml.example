@@ -1,0 +1,6 @@
+# Example agent configuration
+api_url: http://localhost:3001
+name: my-windows-agent
+registration_secret: your-agent-secret-here
+heartbeat_interval: 30
+job_timeout: 3600
