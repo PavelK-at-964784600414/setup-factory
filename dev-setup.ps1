@@ -15,30 +15,27 @@ Write-Host "[1/8] Checking prerequisites..." -ForegroundColor Yellow
 # Check Node.js
 try {
     $nodeVersion = node --version
-    Write-Host "✓ Node.js detected: $nodeVersion" -ForegroundColor Green
-}
-catch {
-    Write-Host "✗ Node.js not found. Please install Node.js 18+ first." -ForegroundColor Red
+    Write-Host "Node.js detected: $nodeVersion" -ForegroundColor Green
+} catch {
+    Write-Host "Node.js not found. Please install Node.js 18+ first." -ForegroundColor Red
     exit 1
 }
 
 # Check Docker
 try {
     $dockerVersion = docker --version
-    Write-Host "✓ Docker detected: $dockerVersion" -ForegroundColor Green
-}
-catch {
-    Write-Host "✗ Docker not found. Please install Docker Desktop first." -ForegroundColor Red
+    Write-Host "Docker detected: $dockerVersion" -ForegroundColor Green
+} catch {
+    Write-Host "Docker not found. Please install Docker Desktop first." -ForegroundColor Red
     exit 1
 }
 
 # Check if Docker is running
 try {
     docker ps | Out-Null
-    Write-Host "✓ Docker is running" -ForegroundColor Green
-}
-catch {
-    Write-Host "✗ Docker is not running. Please start Docker Desktop first." -ForegroundColor Red
+    Write-Host "Docker is running" -ForegroundColor Green
+} catch {
+    Write-Host "Docker is not running. Please start Docker Desktop first." -ForegroundColor Red
     exit 1
 }
 
@@ -109,10 +106,9 @@ Set-Location api
 try {
     npx prisma migrate dev --name init
     npx prisma generate
-    Write-Host "✓ Database initialized" -ForegroundColor Green
-}
-catch {
-    Write-Host "⚠ Database might already be initialized" -ForegroundColor Yellow
+    Write-Host "Database initialized" -ForegroundColor Green
+} catch {
+    Write-Host "Database might already be initialized" -ForegroundColor Yellow
 }
 
 Set-Location ..
@@ -127,9 +123,9 @@ if (-Not $scriptsPath) {
 }
 
 if (Test-Path $scriptsPath) {
-    Write-Host "✓ Scripts directory found at: $scriptsPath" -ForegroundColor Green
+    Write-Host "Scripts directory found at: $scriptsPath" -ForegroundColor Green
 } else {
-    Write-Host "⚠ Scripts directory not found. Using example scripts." -ForegroundColor Yellow
+    Write-Host "Scripts directory not found. Using example scripts." -ForegroundColor Yellow
     Write-Host "  You can set SCRIPTS_REPO_PATH in .env to point to your scripts" -ForegroundColor Cyan
 }
 
@@ -171,7 +167,7 @@ pause >nul
 '@
 
 Set-Content -Path "start-dev.bat" -Value $startScript
-Write-Host "✓ Created start-dev.bat" -ForegroundColor Green
+Write-Host "Created start-dev.bat" -ForegroundColor Green
 
 $stopScript = @'
 @echo off
@@ -188,7 +184,7 @@ pause
 '@
 
 Set-Content -Path "stop-dev.bat" -Value $stopScript
-Write-Host "✓ Created stop-dev.bat" -ForegroundColor Green
+Write-Host "Created stop-dev.bat" -ForegroundColor Green
 
 Write-Host ""
 
@@ -217,6 +213,6 @@ Start-Sleep -Seconds 2
 & ".\start-dev.bat"
 
 Write-Host ""
-Write-Host "✓ All services are starting in separate windows!" -ForegroundColor Green
-Write-Host "  You can close this window now." -ForegroundColor Cyan
+Write-Host "All services are starting in separate windows!" -ForegroundColor Green
+Write-Host "You can close this window now." -ForegroundColor Cyan
 Write-Host ""
