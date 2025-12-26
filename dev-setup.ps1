@@ -16,7 +16,8 @@ Write-Host "[1/8] Checking prerequisites..." -ForegroundColor Yellow
 try {
     $nodeVersion = node --version
     Write-Host "✓ Node.js detected: $nodeVersion" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "✗ Node.js not found. Please install Node.js 18+ first." -ForegroundColor Red
     exit 1
 }
@@ -25,7 +26,8 @@ try {
 try {
     $dockerVersion = docker --version
     Write-Host "✓ Docker detected: $dockerVersion" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "✗ Docker not found. Please install Docker Desktop first." -ForegroundColor Red
     exit 1
 }
@@ -34,7 +36,8 @@ try {
 try {
     docker ps | Out-Null
     Write-Host "✓ Docker is running" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "✗ Docker is not running. Please start Docker Desktop first." -ForegroundColor Red
     exit 1
 }
@@ -90,7 +93,7 @@ Write-Host "✓ Worker dependencies installed" -ForegroundColor Green
 Write-Host ""
 
 # Start Docker services
-Write-Host "[4/8] Starting infrastructure services (PostgreSQL & Redis)..." -ForegroundColor Yellow
+Write-Host "[4/8] Starting infrastructure services (PostgreSQL and Redis)..." -ForegroundColor Yellow
 docker-compose up -d postgres redis
 
 Write-Host "  Waiting for services to be ready..." -ForegroundColor Cyan
@@ -107,7 +110,8 @@ try {
     npx prisma migrate dev --name init
     npx prisma generate
     Write-Host "✓ Database initialized" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "⚠ Database might already be initialized" -ForegroundColor Yellow
 }
 
