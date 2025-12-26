@@ -1,7 +1,3 @@
-#!/usr/bin/env pwsh
-# Setup-Factory Development Setup Script for Windows
-# Run this script to install dependencies and start all services
-
 $ErrorActionPreference = "Stop"
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -46,7 +42,7 @@ Write-Host "[2/8] Setting up environment configuration..." -ForegroundColor Yell
 
 if (-Not (Test-Path ".env")) {
     Copy-Item ".env.example" ".env"
-    Write-Host "✓ Created .env from template" -ForegroundColor Green
+    Write-Host "Created .env from template" -ForegroundColor Green
     
     # Generate secrets
     Write-Host "  Generating secrets..." -ForegroundColor Cyan
@@ -59,9 +55,9 @@ if (-Not (Test-Path ".env")) {
     (Get-Content ".env") -replace 'SESSION_SECRET=.*', "SESSION_SECRET=$sessionSecret" | Set-Content ".env"
     (Get-Content ".env") -replace 'AGENT_REGISTRATION_SECRET=.*', "AGENT_REGISTRATION_SECRET=$agentSecret" | Set-Content ".env"
     
-    Write-Host "✓ Generated and configured secrets" -ForegroundColor Green
+    Write-Host "Generated and configured secrets" -ForegroundColor Green
 } else {
-    Write-Host "✓ .env file already exists" -ForegroundColor Green
+    Write-Host ".env file already exists" -ForegroundColor Green
 }
 
 Write-Host ""
@@ -73,19 +69,19 @@ Write-Host "  Installing API dependencies..." -ForegroundColor Cyan
 Set-Location api
 npm install
 Set-Location ..
-Write-Host "✓ API dependencies installed" -ForegroundColor Green
+Write-Host "API dependencies installed" -ForegroundColor Green
 
 Write-Host "  Installing Frontend dependencies..." -ForegroundColor Cyan
 Set-Location frontend
 npm install
 Set-Location ..
-Write-Host "✓ Frontend dependencies installed" -ForegroundColor Green
+Write-Host "Frontend dependencies installed" -ForegroundColor Green
 
 Write-Host "  Installing Worker dependencies..." -ForegroundColor Cyan
 Set-Location worker
 npm install
 Set-Location ..
-Write-Host "✓ Worker dependencies installed" -ForegroundColor Green
+Write-Host "Worker dependencies installed" -ForegroundColor Green
 
 Write-Host ""
 
@@ -96,7 +92,7 @@ docker-compose up -d postgres redis
 Write-Host "  Waiting for services to be ready..." -ForegroundColor Cyan
 Start-Sleep -Seconds 5
 
-Write-Host "✓ Infrastructure services started" -ForegroundColor Green
+Write-Host "Infrastructure services started" -ForegroundColor Green
 Write-Host ""
 
 # Initialize database
@@ -134,7 +130,7 @@ Write-Host ""
 # Create batch file to run all services
 Write-Host "[7/8] Creating start script..." -ForegroundColor Yellow
 
-$startScript = @'
+$startScript = @"
 @echo off
 echo ========================================
 echo   Starting Setup-Factory Services
@@ -142,15 +138,15 @@ echo ========================================
 echo.
 
 echo Starting API on port 3001...
-start "Setup-Factory API" cmd /k "cd /d %~dp0api && npm run dev"
+start "Setup-Factory API" cmd /k "cd /d %~dp0api & npm run dev"
 timeout /t 2 /nobreak >nul
 
 echo Starting Frontend on port 3000...
-start "Setup-Factory Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+start "Setup-Factory Frontend" cmd /k "cd /d %~dp0frontend & npm run dev"
 timeout /t 2 /nobreak >nul
 
 echo Starting Worker...
-start "Setup-Factory Worker" cmd /k "cd /d %~dp0worker && npm run dev"
+start "Setup-Factory Worker" cmd /k "cd /d %~dp0worker & npm run dev"
 
 echo.
 echo ========================================
@@ -164,12 +160,12 @@ echo   BullMQ:   http://localhost:3002
 echo.
 echo Press any key to exit this window (services will keep running)...
 pause >nul
-'@
+"@
 
 Set-Content -Path "start-dev.bat" -Value $startScript
 Write-Host "Created start-dev.bat" -ForegroundColor Green
 
-$stopScript = @'
+$stopScript = @"
 @echo off
 echo Stopping Setup-Factory services...
 
@@ -181,7 +177,7 @@ echo Services stopped.
 echo.
 echo To stop Docker services, run: docker-compose down
 pause
-'@
+"@
 
 Set-Content -Path "stop-dev.bat" -Value $stopScript
 Write-Host "Created stop-dev.bat" -ForegroundColor Green
@@ -210,7 +206,7 @@ Write-Host "Starting services now..." -ForegroundColor Yellow
 Start-Sleep -Seconds 2
 
 # Start the services
-& ".\start-dev.bat"
+Start-Process -FilePath ".\start-dev.bat"
 
 Write-Host ""
 Write-Host "All services are starting in separate windows!" -ForegroundColor Green
