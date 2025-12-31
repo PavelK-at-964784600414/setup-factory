@@ -148,57 +148,70 @@ Write-Host ""
 # Create batch file to run all services
 Write-Host "[7/8] Creating start script..." -ForegroundColor Yellow
 
-$startScript = @"
-@echo off
-echo ========================================
-echo   Starting Setup-Factory Services
-echo ========================================
-echo.
+# Create PowerShell script to load .env and start services
+$startScriptPS = @"
+`$ErrorActionPreference = "Stop"
 
-echo Starting API on port 3001...
-start "Setup-Factory API" cmd /k "cd /d %~dp0api & npm run dev"
-timeout /t 2 /nobreak >nul
+Write-Host "Loading environment variables from .env..." -ForegroundColor Cyan
 
-echo Starting Frontend on port 3000...
-start "Setup-Factory Frontend" cmd /k "cd /d %~dp0frontend & npm run dev"
-timeout /t 2 /nobreak >nul
+# Load .env file
+if (Test-Path ".env") {
+    Get-Content ".env" | ForEach-Object {
+        if (`$_ -match '^\s*([^#][^=]*)\s*=\s*(.*)$') {
+            `$name = `$matches[1].Trim()
+            `$value = `$matches[2].Trim()
+            [Environment]::SetEnvironmentVariable(`$name, `$value, "Process")
+        }
+    }
+    Write-Host "Environment variables loaded" -ForegroundColor Green
+} else {
+    Write-Host "Warning: .env file not found!" -ForegroundColor Yellow
+}
 
-echo Starting Worker...
-start "Setup-Factory Worker" cmd /k "cd /d %~dp0worker & npm run dev"
+Write-Host ""
+Write-Host "Starting services..." -ForegroundColor Yellow
+Write-Host ""
 
-echo.
-echo ========================================
-echo   All services are starting!
-echo ========================================
-echo.
-echo Services will be available at:
-echo   Frontend: http://localhost:3000
-echo   API:      http://localhost:3001
-echo   BullMQ:   http://localhost:3002
-echo.
-echo Press any key to exit this window (services will keep running)...
-pause >nul
+# Start API
+Write-Host "Starting API on port 3001..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '`$PWD\api'; npm run dev"
+Start-Sleep -Seconds 2
+
+# Start Frontend
+Write-Host "Starting Frontend on port 3000..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '`$PWD\frontend'; npm run dev"
+Start-Sleep -Seconds 2
+
+# Start Worker
+Write-Host "Starting Worker..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '`$PWD\worker'; npm run dev"
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "  All services are starting!" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "Services will be available at:" -ForegroundColor Yellow
+Write-Host "  Frontend: http://localhost:3000" -ForegroundColor White
+Write-Host "  API:      http://localhost:3001" -ForegroundColor White
+Write-Host "  BullMQ:   http://localhost:3002" -ForegroundColor White
+Write-Host ""
+Write-Host "Press any key to exit (services will keep running)..." -ForegroundColor Cyan
+`$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 "@
 
-Set-Content -Path "start-dev.bat" -Value $startScript
-Write-Host "Created start-dev.bat" -ForegroundColor Green
+Set-Content -Path "start-dev.ps1" -Value $startScriptPS
+Write-Host "Created start-dev.ps1" -ForegroundColor Green
 
 $stopScript = @"
-@echo off
-echo Stopping Setup-Factory services...
-
-taskkill /FI "WindowTitle eq Setup-Factory API*" /T /F >nul 2>&1
-taskkill /FI "WindowTitle eq Setup-Factory Frontend*" /T /F >nul 2>&1
-taskkill /FI "WindowTitle eq Setup-Factory Worker*" /T /F >nul 2>&1
-
-echo Services stopped.
-echo.
-echo To stop Docker services, run: docker-compose down
-pause
+Get-Process -Name powershell | Where-Object { `$_.MainWindowTitle -like '*npm*' -or `$_.MainWindowTitle -like '*dev*' } | Stop-Process -Force
+Write-Host "Services stopped." -ForegroundColor Green
+Write-Host ""
+Write-Host "To stop Docker services, run: docker-compose down" -ForegroundColor Yellow
 "@
 
-Set-Content -Path "stop-dev.bat" -Value $stopScript
-Write-Host "Created stop-dev.bat" -ForegroundColor Green
+Set-Content -Path "stop-dev.ps1" -Value $stopScript
+Write-Host "Created stop-dev.ps1" -ForegroundColor Green
 
 Write-Host ""
 
@@ -210,10 +223,10 @@ Write-Host "  Ready to start development!" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "To start all services, run:" -ForegroundColor Yellow
-Write-Host "  .\start-dev.bat" -ForegroundColor White
+Write-Host "  .\start-dev.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "To stop all services, run:" -ForegroundColor Yellow
-Write-Host "  .\stop-dev.bat" -ForegroundColor White
+Write-Host "  .\stop-dev.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Access the application at:" -ForegroundColor Yellow
 Write-Host "  Frontend:  http://localhost:3000" -ForegroundColor White
@@ -224,7 +237,7 @@ Write-Host "Starting services now..." -ForegroundColor Yellow
 Start-Sleep -Seconds 2
 
 # Start the services
-Start-Process -FilePath ".\start-dev.bat"
+Start-Process powershell -ArgumentList "-File", ".\start-dev.ps1"
 
 Write-Host ""
 Write-Host "All services are starting in separate windows!" -ForegroundColor Green

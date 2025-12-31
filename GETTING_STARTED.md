@@ -1,115 +1,417 @@
 # Setup-Factory Quick Start Guide
 
-This guide will help you get Setup-Factory running locally for development and testing.
+This guide will help you get Setup-Factory running on ANY computer from scratch.
 
-## Prerequisites
+## Fresh Installation on New Computer
 
-Ensure you have the following installed:
+### 1. Install Prerequisites
+
+**On macOS:**
+```bash
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Node.js
+brew install node@18
+
+# Install Python
+brew install python@3.11
+
+# Install Docker Desktop
+brew install --cask docker
+# OR download from: https://www.docker.com/products/docker-desktop
+
+# Verify installations
+node --version    # Should be 18+
+npm --version
+python3 --version # Should be 3.10+
+docker --version
+docker-compose --version
+```
+
+**On Windows:**
+```powershell
+# Install via winget (Windows 10/11)
+winget install OpenJS.NodeJS.LTS
+winget install Python.Python.3.11
+winget install Docker.DockerDesktop
+
+# OR download manually:
+# Node.js: https://nodejs.org/
+# Python: https://www.python.org/downloads/
+# Docker Desktop: https://www.docker.com/products/docker-desktop
+
+# Verify installations
+node --version
+npm --version
+python --version
+docker --version
+```
+
+**On Linux (Ubuntu/Debian):**
+```bash
+# Update package list
+sudo apt update
+
+# Install Node.js 18
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install Python
+sudo apt install -y python3 python3-pip
+
+# Install Docker
+sudo apt install -y docker.io docker-compose
+
+# Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify installations
+node --version
+npm --version
+python3 --version
+docker --version
+```
+
+### 2. Clone the Repository
+
+```bash
+# Clone from GitHub
+git clone https://github.com/PavelK-at-964784600414/setup-factory.git
+cd setup-factory
+```
+
+### 3. Install ALL Dependencies
+
+```bash
+# Option A: Use Makefile (recommended)
+make install
+
+# Option B: Manual installation
+npm install                          # Root dependencies
+cd api && npm install && cd ..       # API dependencies
+cd frontend && npm install && cd ..  # Frontend dependencies
+cd worker && npm install && cd ..    # Worker dependencies
+cd agent && pip3 install -r requirements.txt && cd ..  # Agent dependencies
+```
+
+This will take a few minutes as it downloads all packages.
+
+## Prerequisites (Quick Reference)
 
 - **Node.js 18+** and npm
 - **Python 3.10+**
 - **Docker** and **Docker Compose**
 - **Git**
-- **PostgreSQL 14+** (or use Docker)
-- **Redis 7+** (or use Docker)
+- **PostgreSQL 14+** (or use Docker - recommended)
+- **Redis 7+** (or use Docker - recommended)
 
 For Windows development, also install:
 - **PowerShell 7+**
 - **Windows Terminal** (recommended)
 
-## Quick Start with Docker Compose
-
-### 1. Clone and Configure
+### 4. Configure Environment
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd setup-factory
-
 # Copy environment template
 cp .env.example .env
 
-# Edit .env with your settings (at minimum, set secrets)
-# Required changes:
-# - JWT_SECRET (generate with: openssl rand -hex 32)
-# - SESSION_SECRET
-# - BITBUCKET_URL and credentials
-# - JIRA_URL and credentials
-# - AGENT_REGISTRATION_SECRET
+# Edit with your favorite editor
+nano .env
+# OR
+code .env
+# OR
+vim .env
 ```
 
-### 2. Start Infrastructure Services
+**Minimum required changes for local testing:**
 
 ```bash
-# Start PostgreSQL and Redis
+# Generate secrets (on macOS/Linux)
+openssl rand -hex 32  # Copy output for JWT_SECRET
+openssl rand -hex 32  # Copy output for SESSION_SECRET
+openssl rand -hex 32  # Copy output for AGENT_REGISTRATION_SECRET
+
+# On Windows PowerShell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+```
+
+Edit your `.env` file:
+```env
+# REQUIRED - Change these!
+JWT_SECRET=paste-your-generated-secret-here
+SESSION_SECRET=paste-your-generated-secret-here
+AGENT_REGISTRATION_SECRET=paste-your-generated-secret-here
+
+# Database (can use Docker defaults)
+DATABASE_URL=postgresql://setupfactory:setupfactory@localhost:5432/setupfactory
+
+# Redis (can use Docker defaults)
+REDIS_URL=redis://localhost:6379
+
+# Bitbucket - UPDATE WITH YOUR REPO!
+BITBUCKET_URL=https://bitbucket.org/yourteam/automation-scripts.git
+BITBUCKET_USERNAME=your-username
+BITBUCKET_APP_PASSWORD=your-app-password
+
+# Jira - UPDATE IF YOU WANT JIRA INTEGRATION
+JIRA_URL=https://yourcompany.atlassian.net
+JIRA_USERNAME=youruser@yourcompany.com
+JIRA_API_TOKEN=your-jira-api-token
+
+# For testing, you can leave Vault and Kerberos commented out
+```
+
+### 5. Start Infrastructure (PostgreSQL & Redis)
+
+```bash
+# Start database and cache
 docker-compose up -d postgres redis
 
-# Wait for services to be healthy
+# Wait a few seconds for services to start
+sleep 5
+
+# Check they're running
 docker-compose ps
 ```
 
-### 3. Initialize Database
+### 6. Initialize Database
 
 ```bash
+# Option A: Use Makefile
+make db-setup
+
+# Option B: Manual
 cd api
-npm install
+npm install  # If not done already
 npx prisma migrate dev --name init
 npx prisma generate
 cd ..
 ```
 
-### 4. Start All Services
+### 7. Prepare Test Scripts Directory
+
+**IMPORTANT: Where to put your test scripts!**
 
 ```bash
-# Start all services (API, Frontend, Worker)
+# Create scripts directory
+mkdir -p /var/lib/setup-factory/scripts
+
+# Copy example scripts to test location
+cp -r scripts-repo-example/manifests /var/lib/setup-factory/scripts/
+cp -r scripts-repo-example/scripts /var/lib/setup-factory/scripts/
+
+# Verify structure
+ls -la /var/lib/setup-factory/scripts/
+# Should see:
+# manifests/
+# scripts/
+```
+
+**Alternative (if /var/lib needs sudo):**
+
+```bash
+# Use local directory
+mkdir -p $HOME/setup-factory-data/scripts
+cp -r scripts-repo-example/manifests $HOME/setup-factory-data/scripts/
+cp -r scripts-repo-example/scripts $HOME/setup-factory-data/scripts/
+
+# Update .env to point to this location
+# Add this line to your .env:
+SCRIPTS_REPO_PATH=$HOME/setup-factory-data/scripts
+```
+
+### 8. Start the Application
+
+**Option A: All services with Docker Compose**
+```bash
 docker-compose up -d
+docker-compose logs -f  # Watch logs
+```
 
-# View logs
-docker-compose logs -f
+**Option B: Development mode (recommended for testing)**
+```bash
+# Keep infrastructure running in Docker
+docker-compose up -d postgres redis
 
-# Or start individually for development:
+# In separate terminals (or use make dev):
+
 # Terminal 1 - API
-cd api && npm install && npm run dev
+cd api
+npm run dev
 
-# Terminal 2 - Frontend  
-cd frontend && npm install && npm run dev
+# Terminal 2 - Frontend
+cd frontend
+npm run dev
 
 # Terminal 3 - Worker
-cd worker && npm install && npm run dev
+cd worker
+npm run dev
+
+# OR use one command (requires 'concurrently' package):
+make dev
 ```
 
-### 5. Access the Application
+### 9. Access the Application
 
-- **Frontend**: http://localhost:3000
-- **API**: http://localhost:3001
-- **BullMQ Dashboard**: http://localhost:3002 (queue monitoring)
+Open your browser:
 
-### 6. Set Up Scripts Repository
+- **Frontend (Main UI)**: http://localhost:3000
+- **API (Health Check)**: http://localhost:3001/health
+- **BullMQ Dashboard**: http://localhost:3002
+
+You should see the Setup-Factory home page!
+
+### 10. Test with Example Scripts
+
+**Sync scripts from your directory:**
 
 ```bash
-# Option A: Use the example scripts
-cp -r scripts-repo-example /var/lib/setup-factory/scripts
-
-# Option B: Clone from Bitbucket (configured in .env)
-# The API will auto-sync on startup if configured correctly
+# Trigger script sync (or wait for auto-sync on startup)
+curl -X POST http://localhost:3001/api/scripts/sync
 ```
 
-### 7. Register an Agent (Optional)
+**Run your first test:**
 
-For agent-based execution (uses local Windows credentials):
+1. **Open the UI**: http://localhost:3000
+2. **Navigate to Scripts**: You should see `repro_deploy_example` in the list
+3. **Click the script** to open the execution form
+4. **Fill parameters**:
+   - `target_server`: test-server.example.com
+   - `app_version`: 1.2.3
+   - `environment`: staging
+5. **Click "Execute Script"** button
+6. **Monitor execution**: Go to Jobs page to see progress
+7. **Download results**: Once complete, download the reproduction bundle (ZIP with logs, screenshots, environment snapshot)
+
+**View in BullMQ Dashboard:**
+- Navigate to http://localhost:3002
+- Watch job progress in real-time
+- See completed/failed jobs
+
+### 11. Adding Your Own Scripts
+
+**To add new test scripts:**
 
 ```bash
-# On Windows host
-cd agent
+# Navigate to scripts directory
+cd /var/lib/setup-factory/scripts
+# (or wherever you configured SCRIPTS_REPO_PATH)
+
+# Create manifest file
+nano manifests/my_test_script.yaml
+```
+
+**Manifest example:**
+```yaml
+id: my_test_script
+name: "My Test Automation"
+description: "Tests my functionality"
+category: deployment
+runner: powershell  # or: python, bash
+
+parameters:
+  - id: server
+    label: "Target Server"
+    type: string
+    required: true
+    placeholder: "server.example.com"
+
+capture:
+  screenshots: true
+  logs: true
+  artifacts:
+    - "C:\\Logs\\*.log"
+    - "C:\\Temp\\output.txt"
+
+script_path: "scripts/my_test_script.ps1"
+estimated_duration: "5m"
+```
+
+**Create the script:**
+```bash
+nano scripts/my_test_script.ps1
+```
+
+**PowerShell example:**
+```powershell
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$server
+)
+
+Write-Host "Testing connection to $server..."
+Test-Connection -ComputerName $server -Count 2
+
+# Your automation logic here
+Write-Host "Test completed successfully!"
+```
+
+**Sync to load new script:**
+```bash
+curl -X POST http://localhost:3001/api/scripts/sync
+# Refresh browser - your new script appears!
+```
+
+### 12. Setting Up Windows Agent (Optional)
+
+For running scripts with **local Windows credentials** (preferred for corporate environments):
+
+**On Windows machine:**
+```powershell
+# Clone repo (or just copy agent/ folder)
+cd setup-factory\agent
+
+# Install Python dependencies
 pip install -r requirements.txt
 
-# Configure agent
-cp config.yaml.example config.yaml
-# Edit config.yaml with API URL and registration secret
-
-# Run agent
-python agent.py --config config.yaml
+# Configure
+copy config.yaml.example config.yaml
+notepad config.yaml
 ```
+
+**Edit config.yaml:**
+```yaml
+api:
+  url: http://your-server-ip:3001
+  registration_secret: paste-AGENT_REGISTRATION_SECRET-from-env
+
+agent:
+  name: win-agent-01
+  tags:
+    - windows
+    - production
+```
+
+**Run agent:**
+```powershell
+python agent.py --config config.yaml
+
+# Should see:
+# Agent 'win-agent-01' registered successfully
+# Agent started, polling for jobs...
+```
+
+**Back in UI**: Agent now appears in Agents page and can be selected as execution target!
+
+---
+
+## Testing Checklist
+
+After setup, verify everything works:
+
+- [ ] Frontend loads at http://localhost:3000
+- [ ] API health check returns `{"status":"healthy"}` at http://localhost:3001/health
+- [ ] Database contains `Script`, `Job`, `User` tables: `make db-studio`
+- [ ] Example scripts appear in UI after sync
+- [ ] Can execute `repro_deploy_example` script successfully
+- [ ] Job appears in Jobs page with status updates
+- [ ] Can download reproduction bundle (ZIP file)
+- [ ] BullMQ dashboard shows job history at http://localhost:3002
+- [ ] (Optional) Windows agent registers and accepts jobs
+
+---
 
 ## Development Workflow
 
