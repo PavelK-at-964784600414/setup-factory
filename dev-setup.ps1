@@ -90,22 +90,40 @@ Write-Host "[4/8] Starting infrastructure services (PostgreSQL and Redis)..." -F
 docker-compose up -d postgres redis
 
 Write-Host "  Waiting for services to be ready..." -ForegroundColor Cyan
-Start-Sleep -Seconds 5
+Start-Sleep -Seconds 8
 
-Write-Host "Infrastructure services started" -ForegroundColor Green
+# Check if Redis is ready
+Write-Host "  Checking Redis connection..." -ForegroundColor Cyan
+$retries = 0
+while ($retries -lt 10) {
+    try {
+        docker exec setup-factory-redis redis-cli ping | Out-Null
+        Write-Host "Infrastructure services started" -ForegroundColor Green
+        break
+    } catch {
+        $retries++
+        if ($retries -eq 10) {
+            Write-Host "Warning: Redis might not be ready. Continuing anyway..." -ForegroundColor Yellow
+        }
+        Start-Sleep -Seconds 1
+    }
+}
 Write-Host ""
 
 # Initialize database
 Write-Host "[5/8] Initializing database..." -ForegroundColor Yellow
 Set-Location api
 
+Write-Host "  Running Prisma migrations..." -ForegroundColor Cyan
 try {
-    npx prisma migrate dev --name init
-    npx prisma generate
-    Write-Host "Database initialized" -ForegroundColor Green
+    npx prisma migrate dev --name init 2>&1 | Out-Null
 } catch {
-    Write-Host "Database might already be initialized" -ForegroundColor Yellow
+    Write-Host "  Migrations already applied" -ForegroundColor Yellow
 }
+
+Write-Host "  Generating Prisma client..." -ForegroundColor Cyan
+npx prisma generate
+Write-Host "Database initialized" -ForegroundColor Green
 
 Set-Location ..
 Write-Host ""
