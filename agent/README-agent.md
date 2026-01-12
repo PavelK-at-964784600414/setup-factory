@@ -69,6 +69,10 @@ name: my-windows-agent
 registration_secret: your-agent-secret-here  # Get from admin
 heartbeat_interval: 30
 job_timeout: 3600
+
+# Output sanitization - removes sensitive data from logs
+sanitize_output: true  # Set to false to disable sanitization
+sanitize_patterns: []  # Custom regex patterns (optional)
 ```
 
 ### 6. Register Agent
@@ -189,6 +193,58 @@ The agent automatically captures environment information for reproducibility:
 - Relevant environment variables (PATH, KRB5CCNAME, etc.)
 
 This snapshot is included in reproduction bundles for debugging.
+
+## Output Sanitization
+
+The agent can automatically sanitize sensitive information from script output before logging or sending to the server:
+
+### Default Behavior
+
+When `sanitize_output: true` (default), the agent automatically redacts:
+- **Credentials**: Passwords (password, passwd, pwd)
+- **Authentication**: API keys, tokens, Bearer tokens
+- **Cloud**: AWS credentials
+- **Keys**: SSH private keys
+- **Secrets**: Generic secrets
+- **Network**: IP addresses (including private ranges), internal hostnames/FQDNs
+- **Paths**: Windows file paths (C:\...), Unix paths (/home/..., /var/...), UNC paths (\\\\server\...)
+- **Databases**: Connection strings, database names, server names
+- **URLs**: Internal URLs with private domains or IPs
+
+### Configuration
+
+```yaml
+# Disable sanitization (not recommended for production)
+sanitize_output: false
+
+# Add custom patterns (regex)
+sanitize_patterns:
+  - 'database_connection_string=.*'
+  - 'custom_secret_key=.*'
+  - 'organization_name=.*'
+```
+
+### Example
+
+Input:
+```
+Connecting with password=MySecret123
+Server IP: 192.168.1.100
+Database: Server=sql-prod.internal;Database=CustomerDB
+Accessing C:\Program Files\MyApp\config.ini
+API_KEY=abc123xyz789
+```
+
+Sanitized output:
+```
+Connecting with password=***REDACTED***
+Server IP: ***REDACTED***
+Database: Server=***REDACTED***;Database=***REDACTED***
+Accessing ***REDACTED***
+API_KEY=***REDACTED***
+```
+
+**Note:** Sanitization helps prevent accidental credential and infrastructure information leakage in logs and reproduction bundles.
 
 ## Logs
 

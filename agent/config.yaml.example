@@ -4,3 +4,12 @@ name: my-windows-agent
 registration_secret: your-agent-secret-here
 heartbeat_interval: 30
 job_timeout: 3600
+
+# Output sanitization (remove sensitive data from logs)
+sanitize_output: true
+
+# Custom sanitization patterns (regex)
+# Leave empty to use default patterns for passwords, API keys, tokens, etc.
+sanitize_patterns: []
+  # - 'custom_secret_pattern_here'
+  # - 'another_pattern_here'

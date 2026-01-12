@@ -12,6 +12,7 @@ import time
 import platform
 import socket
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -127,10 +128,14 @@ class SetupFactoryAgent:
             )
             duration = time.time() - start_time
 
+            # Sanitize output if enabled
+            stdout_sanitized = self._sanitize_output(result.stdout)
+            stderr_sanitized = self._sanitize_output(result.stderr) if result.stderr else ''
+            
             # Stream logs (would use websocket in production)
-            self._stream_logs(job_id, result.stdout)
-            if result.stderr:
-                self._stream_logs(job_id, result.stderr)
+            self._stream_logs(job_id, stdout_sanitized)
+            if stderr_sanitized:
+                self._stream_logs(job_id, stderr_sanitized)
 
             success = result.returncode == 0
 
@@ -142,8 +147,8 @@ class SetupFactoryAgent:
                 'exit_code': result.returncode,
                 'duration': duration,
                 'env_snapshot': env_snapshot,
-                'stdout': result.stdout,
-                'stderr': result.stderr,
+                'stdout': stdout_sanitized,
+                'stderr': stderr_sanitized,
             }
 
         except subprocess.TimeoutExpired:
@@ -160,6 +165,72 @@ class SetupFactoryAgent:
                 'status': 'error',
                 'error': str(e)
             }
+
+    def _sanitize_output(self, output: str) -> str:
+        """Sanitize sensitive information from output"""
+        if not output or not self.config.get('sanitize_output', True):
+            return output
+        
+        sanitized = output
+        patterns = self.config.get('sanitize_patterns', [])
+        
+        # Default patterns if none configured
+        if not patterns:
+            patterns = [
+                # Password patterns
+                r'password[\s=:\'"]+[^\s\'"]+',
+                r'passwd[\s=:\'"]+[^\s\'"]+',
+                r'pwd[\s=:\'"]+[^\s\'"]+',
+                # API keys and tokens
+                r'api[_-]?key[\s=:\'"]+[^\s\'"]+',
+                r'api[_-]?token[\s=:\'"]+[^\s\'"]+',
+                r'access[_-]?token[\s=:\'"]+[^\s\'"]+',
+                r'auth[_-]?token[\s=:\'"]+[^\s\'"]+',
+                r'bearer[\s]+[A-Za-z0-9\-._~+/]+=*',
+                # AWS credentials
+                r'aws[_-]?access[_-]?key[_-]?id[\s=:\'"]+[^\s\'"]+',
+                r'aws[_-]?secret[_-]?access[_-]?key[\s=:\'"]+[^\s\'"]+',
+                # SSH private keys
+                r'-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]+?-----END [A-Z ]+PRIVATE KEY-----',
+                # Generic secrets
+                r'secret[\s=:\'"]+[^\s\'"]+',
+                # IP addresses (IPv4)
+                r'\b(?:10\.|172\.(?:1[6-9]|2[0-9]|3[01])\.|192\.168\.)\d{1,3}\.\d{1,3}\b',
+                r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+                # Internal hostnames and FQDNs (common internal patterns)
+                r'\b[\w-]+\.(?:local|internal|corp|intranet|lan|priv|private)\b',
+                r'\b[\w-]+\.(?:ad|domain)\.[\w-]+\b',
+                # File paths (Windows and Unix)
+                r'[C-Z]:\\(?:[\w\-\. ]+\\)*[\w\-\. ]+',  # Windows paths
+                r'/(?:home|root|opt|var|usr|etc)/(?:[\w\-\.]+/)*[\w\-\.]+',  # Unix paths
+                r'\\\\[\w\-\.]+\\[\w\-\$]+(?:\\[\w\-\. ]+)*',  # UNC paths
+                # Database connection strings and names
+                r'(?:Server|Host|Data Source)[\s]*=[\s]*[^\s;,\'"]+',
+                r'(?:Database|Initial Catalog)[\s]*=[\s]*[^\s;,\'"]+',
+                r'(?:mongodb|postgresql|mysql|mssql|oracle)://[^\s\'"]+',
+                # URLs with internal domains
+                r'https?://(?:[\w\-]+\.)?(?:local|internal|corp|intranet|lan|priv|private)[^\s\'"]*',
+                r'https?://(?:10\.|172\.(?:1[6-9]|2[0-9]|3[01])\.|192\.168\.)[^\s\'"]*',
+            ]
+        
+        # Apply sanitization patterns
+        for pattern in patterns:
+            try:
+                # Replace with masked value, preserving first few characters for debugging
+                def mask_match(match):
+                    matched_text = match.group(0)
+                    # Keep the key name visible but mask the value
+                    if '=' in matched_text or ':' in matched_text:
+                        parts = re.split(r'[=:]', matched_text, 1)
+                        if len(parts) == 2:
+                            return f"{parts[0]}=***REDACTED***"
+                    return "***REDACTED***"
+                
+                sanitized = re.sub(pattern, mask_match, sanitized, flags=re.IGNORECASE)
+            except Exception as e:
+                logger.warning(f"Failed to apply sanitization pattern '{pattern}': {e}")
+        
+        return sanitized
 
     def _build_command(self, script_path: str, parameters: Dict[str, Any]) -> str:
         """Build command line from script path and parameters"""
