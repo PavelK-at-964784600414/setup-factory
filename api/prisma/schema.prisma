@@ -62,7 +62,7 @@ model Job {
   started_at  DateTime?
   completed_at DateTime?
   exit_code   Int?
-  logs        String?  @db.Text
+  logs        String?
   artifacts   Json?
   env_snapshot Json?
   bundle_path String?
