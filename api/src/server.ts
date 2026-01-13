@@ -10,6 +10,7 @@ import { jobsRoutes } from './routes/jobs';
 import { adminRoutes } from './routes/admin';
 import { agentsRoutes } from './routes/agents';
 import { authRoutes } from './routes/auth';
+import { userParametersRoutes } from './routes/userParameters';
 import { initDatabase } from './lib/database';
 
 dotenv.config();
@@ -55,6 +56,7 @@ async function start() {
     await fastify.register(jobsRoutes, { prefix: '/api/jobs' });
     await fastify.register(agentsRoutes, { prefix: '/api/agents' });
     await fastify.register(adminRoutes, { prefix: '/api/admin' });
+    await fastify.register(userParametersRoutes, { prefix: '/api/user-parameters' });
 
     // Start server
     await fastify.listen({ port: PORT, host: HOST });

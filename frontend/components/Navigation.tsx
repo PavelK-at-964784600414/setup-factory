@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { PlayCircle, History, BarChart3, Activity, Home } from 'lucide-react';
+import { PlayCircle, History, BarChart3, Activity, Home, Settings } from 'lucide-react';
 import clsx from 'clsx';
 
 const navigation = [
@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Jobs', href: '/jobs', icon: History },
   { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
   { name: 'Agents', href: '/agents', icon: Activity },
+  { name: 'Parameters', href: '/parameters', icon: Settings },
 ];
 
 export function Navigation() {

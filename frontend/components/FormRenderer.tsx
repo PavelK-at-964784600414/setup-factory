@@ -3,6 +3,9 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { useEffect } from 'react';
 
 interface Parameter {
   name: string;
@@ -21,6 +24,12 @@ interface FormRendererProps {
 }
 
 export function FormRenderer({ parameters, onSubmit, defaultValues }: FormRendererProps) {
+  // Fetch user parameters
+  const { data: userParameters } = useQuery({
+    queryKey: ['user-parameters'],
+    queryFn: () => api.get('/api/user-parameters').then((res) => res.data),
+  });
+
   // Build Zod schema dynamically from parameters
   const schemaFields: Record<string, z.ZodTypeAny> = {};
   
@@ -52,12 +61,38 @@ export function FormRenderer({ parameters, onSubmit, defaultValues }: FormRender
     control,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: defaultValues || {},
   });
 
+  // Auto-fill from user parameters if no default values provided
+  useEffect(() => {
+    if (userParameters && !defaultValues) {
+      parameters.forEach((param) => {
+        // Try to match parameter name with user parameter key
+        const userParam = userParameters.find((up: any) => 
+          up.key === param.name || 
+          up.key === `default_${param.name}` ||
+          up.key.endsWith(`_${param.name}`)
+        );
+        
+        if (userParam) {
+          setValue(param.name, userParam.value);
+        }
+      });
+    }
+  }, [userParameters, parameters, defaultValues, setValue]);
+
   const renderField = (param: Parameter) => {
+    // Find matching user parameter for suggestions
+    const matchingUserParam = userParameters?.find((up: any) => 
+      up.key === param.name || 
+      up.key === `default_${param.name}` ||
+      up.key.endsWith(`_${param.name}`)
+    );
+
     switch (param.type) {
       case 'boolean':
         return (

@@ -11,12 +11,28 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  username   String   @unique
-  email      String?  @unique
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id         String          @id @default(uuid())
+  username   String          @unique
+  email      String?         @unique
+  created_at DateTime        @default(now())
+  updated_at DateTime        @updatedAt
   jobs       Job[]
+  parameters UserParameter[]
+}
+
+model UserParameter {
+  id          String   @id @default(uuid())
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  key         String   // e.g., "default_host", "default_user", "api_endpoint"
+  value       String   // The actual value
+  description String?  // Optional description
+  category    String?  // Optional category like "credentials", "network", "general"
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@unique([user_id, key])
+  @@index([user_id])
 }
 
 model Script {
