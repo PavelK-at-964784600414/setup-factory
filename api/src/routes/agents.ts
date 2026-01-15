@@ -15,8 +15,12 @@ export async function agentsRoutes(fastify: FastifyInstance) {
       try {
         const { name, hostname, secret } = request.body;
         
+        // Log for debugging
+        logger.info(`Agent registration attempt - Expected: "${process.env.AGENT_REGISTRATION_SECRET}", Received: "${secret}"`);
+        
         // Verify registration secret
         if (secret !== process.env.AGENT_REGISTRATION_SECRET) {
+          logger.warn(`Agent registration failed - secret mismatch`);
           return reply.status(401).send({ error: 'Invalid registration secret' });
         }
 
