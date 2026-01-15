@@ -13,7 +13,10 @@ import { authRoutes } from './routes/auth';
 import { userParametersRoutes } from './routes/userParameters';
 import { initDatabase } from './lib/database';
 
-dotenv.config();
+// Load .env file - try multiple locations
+dotenv.config(); // Current directory
+dotenv.config({ path: '../.env' }); // Parent directory
+dotenv.config({ path: '../../.env' }); // Project root
 
 const PORT = parseInt(process.env.API_PORT || '3001', 10);
 const HOST = process.env.API_HOST || '0.0.0.0';
