@@ -34,24 +34,35 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         }
 
         // Create or update agent in database
-        const agent = await prisma.agent.upsert({
+        // Try to find existing agent first
+        const existingAgent = await prisma.agent.findFirst({
           where: { 
-            name_hostname: { 
-              name, 
-              hostname 
-            } 
-          },
-          update: {
-            status: 'online',
-            last_seen: new Date()
-          },
-          create: {
-            name,
-            hostname,
-            status: 'online',
-            last_seen: new Date()
+            name, 
+            hostname 
           }
         });
+
+        let agent;
+        if (existingAgent) {
+          // Update existing agent
+          agent = await prisma.agent.update({
+            where: { id: existingAgent.id },
+            data: {
+              status: 'online',
+              last_seen: new Date()
+            }
+          });
+        } else {
+          // Create new agent
+          agent = await prisma.agent.create({
+            data: {
+              name,
+              hostname,
+              status: 'online',
+              last_seen: new Date()
+            }
+          });
+        }
 
         logger.info(`Agent registered: ${name} (${hostname}) - ID: ${agent.id}`);
         return reply.status(201).send(agent);
