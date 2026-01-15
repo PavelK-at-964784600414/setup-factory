@@ -100,8 +100,16 @@ export async function agentsRoutes(fastify: FastifyInstance) {
       
       logger.info(`Sending job ${jobId} to agent ${request.params.id}`);
       
-      // TODO: Implement actual job dispatch to agent via Redis/WebSocket
-      // For now, just acknowledge receipt
+      // Update job in database with agent assignment and status
+      await prisma.job.update({
+        where: { id: jobId },
+        data: {
+          agent_id: request.params.id,
+          status: 'pending',
+          started_at: new Date()
+        }
+      });
+      
       return { 
         success: true, 
         message: 'Job queued for agent execution',
@@ -111,6 +119,65 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     } catch (error) {
       logger.error('Error dispatching job to agent:', error);
       return reply.status(500).send({ error: 'Failed to dispatch job' });
+    }
+  });
+
+  // GET /api/agents/:id/jobs - Agent polls for pending jobs
+  fastify.get<{ Params: { id: string } }>('/:id/jobs', async (request, reply) => {
+    try {
+      const jobs = await prisma.job.findMany({
+        where: {
+          agent_id: request.params.id,
+          status: 'pending'
+        },
+        include: {
+          script: true
+        },
+        orderBy: { created_at: 'asc' },
+        take: 1  // Agent processes one job at a time
+      });
+      
+      // Mark job as running
+      if (jobs.length > 0) {
+        await prisma.job.update({
+          where: { id: jobs[0].id },
+          data: { status: 'running' }
+        });
+      }
+      
+      return jobs;
+    } catch (error) {
+      logger.error('Error fetching jobs for agent:', error);
+      return reply.status(500).send({ error: 'Failed to fetch jobs' });
+    }
+  });
+
+  // POST /api/agents/:id/jobs/:jobId/result - Agent reports job execution result
+  fastify.post<{
+    Params: { id: string; jobId: string };
+    Body: { status: string; exit_code?: number; logs?: string; artifacts?: any }
+  }>('/:id/jobs/:jobId/result', async (request, reply) => {
+    try {
+      const { status, exit_code, logs, artifacts } = request.body;
+      
+      logger.info(`Agent ${request.params.id} reporting result for job ${request.params.jobId}: ${status}`);
+      
+      // Update job with results
+      await prisma.job.update({
+        where: { id: request.params.jobId },
+        data: {
+          status,
+          exit_code,
+          logs,
+          artifacts,
+          completed_at: new Date()
+        }
+      });
+      
+      return { success: true };
+    } catch (error) {
+      logger.error('Error updating job result:', error);
+      return reply.status(500).send({ error: 'Failed to update job result' });
     }
   });
 }

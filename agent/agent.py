@@ -301,34 +301,35 @@ class SetupFactoryAgent:
         logger.info(f"Job {job_id} output:\n{logs}")
 
     def poll_for_jobs(self):
-        """Poll API for new jobs (simplified - would use websocket/Redis in production)"""
+        """Poll API for new jobs"""
         if not self.agent_id:
             logger.warning("Agent not registered, cannot poll for jobs")
             return
 
         try:
             response = requests.get(
-                f"{self.api_url}/api/agents/{self.agent_id}/jobs/pending",
+                f"{self.api_url}/api/agents/{self.agent_id}/jobs",
                 timeout=5
             )
             if response.status_code == 200:
                 jobs = response.json()
                 for job in jobs:
-                    result = self.execute_job(job)
+                    logger.info(f"Received job {job['id']} for script {job['script_id']}")
+                    result = self.execute_job(job['id'], job['script_id'], job['parameters'], job['script'])
                     # Report result back to API
-                    self._report_job_result(job['jobId'], result)
+                    self._report_job_result(job['id'], result)
         except Exception as e:
-            logger.error(f"Error polling for jobs: {e}")
+            logger.debug(f"Error polling for jobs: {e}")
 
     def _report_job_result(self, job_id: str, result: Dict[str, Any]):
         """Report job execution result to API"""
         try:
             requests.post(
-                f"{self.api_url}/api/jobs/{job_id}/result",
+                f"{self.api_url}/api/agents/{self.agent_id}/jobs/{job_id}/result",
                 json=result,
                 timeout=10
             )
-            logger.info(f"Reported result for job {job_id}")
+            logger.info(f"Reported result for job {job_id}: {result['status']}")
         except Exception as e:
             logger.error(f"Failed to report job result: {e}")
 
