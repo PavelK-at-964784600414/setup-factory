@@ -84,6 +84,7 @@ model Agent {
   registered_at DateTime @default(now())
   jobs          Job[]
 
+  @@unique([name, hostname])
   @@index([status])
 }
 
