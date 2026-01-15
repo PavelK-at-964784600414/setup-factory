@@ -1,8 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/database';
 import { logger } from '../lib/logger';
-
-const prisma = new PrismaClient();
 
 export async function userParametersRoutes(fastify: FastifyInstance) {
   // GET /api/user-parameters - Get all parameters for current user
