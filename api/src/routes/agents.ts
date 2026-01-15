@@ -89,4 +89,28 @@ export async function agentsRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({ error: 'Failed to process heartbeat' });
     }
   });
+
+  // POST /api/agents/:id/execute - Send job to agent for execution
+  fastify.post<{ 
+    Params: { id: string };
+    Body: { jobId: string; scriptId: string; parameters: Record<string, any> }
+  }>('/:id/execute', async (request, reply) => {
+    try {
+      const { jobId, scriptId, parameters } = request.body;
+      
+      logger.info(`Sending job ${jobId} to agent ${request.params.id}`);
+      
+      // TODO: Implement actual job dispatch to agent via Redis/WebSocket
+      // For now, just acknowledge receipt
+      return { 
+        success: true, 
+        message: 'Job queued for agent execution',
+        jobId,
+        agentId: request.params.id
+      };
+    } catch (error) {
+      logger.error('Error dispatching job to agent:', error);
+      return reply.status(500).send({ error: 'Failed to dispatch job' });
+    }
+  });
 }
