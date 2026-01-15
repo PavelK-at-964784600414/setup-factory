@@ -99,22 +99,27 @@ class SetupFactoryAgent:
             logger.error(f"Heartbeat failed: {e}")
             return False
 
-    def execute_job(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
+    def execute_job(self, job_id: str, script_id: str, parameters: Dict[str, Any], script_manifest: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a job locally"""
-        job_id = job_data['jobId']
-        script_id = job_data['scriptId']
-        parameters = job_data['parameters']
-
         logger.info(f"Executing job {job_id} for script {script_id}")
 
         try:
-            # Get environment snapshot before execution
-            env_snapshot = self._capture_environment_snapshot()
+            # Get script file path from manifest
+            script_file = script_manifest.get('script_file', f'{script_id}.ps1')
+            script_dir = self.config.get('scripts_dir', 'scripts')
+            script_path = os.path.join(script_dir, script_file)
+            
+            # Check if script exists
+            if not os.path.exists(script_path):
+                logger.error(f"Script file not found: {script_path}")
+                return {
+                    'status': 'failed',
+                    'exit_code': 1,
+                    'logs': f"Error: Script file not found: {script_path}"
+                }
 
             # Build command
-            script_path = f"scripts/{script_id}"  # TODO: Get from manifest
             command = self._build_command(script_path, parameters)
-
             logger.info(f"Running command: {command}")
 
             # Execute script
@@ -124,46 +129,44 @@ class SetupFactoryAgent:
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=int(self.config.get('job_timeout', 3600))
+                timeout=int(self.config.get('job_timeout', 3600)),
+                cwd=os.path.dirname(script_path) if os.path.dirname(script_path) else None
             )
             duration = time.time() - start_time
 
             # Sanitize output if enabled
-            stdout_sanitized = self._sanitize_output(result.stdout)
+            stdout_sanitized = self._sanitize_output(result.stdout) if result.stdout else ''
             stderr_sanitized = self._sanitize_output(result.stderr) if result.stderr else ''
             
-            # Stream logs (would use websocket in production)
-            self._stream_logs(job_id, stdout_sanitized)
+            # Combine stdout and stderr for logs
+            combined_logs = ""
+            if stdout_sanitized:
+                combined_logs += f"STDOUT:\n{stdout_sanitized}\n"
             if stderr_sanitized:
-                self._stream_logs(job_id, stderr_sanitized)
-
+                combined_logs += f"STDERR:\n{stderr_sanitized}\n"
+            
             success = result.returncode == 0
-
-            logger.info(f"Job {job_id} {'succeeded' if success else 'failed'} in {duration:.2f}s")
+            logger.info(f"Job {job_id} {'succeeded' if success else 'failed'} in {duration:.2f}s with exit code {result.returncode}")
 
             return {
-                'job_id': job_id,
                 'status': 'success' if success else 'failed',
                 'exit_code': result.returncode,
-                'duration': duration,
-                'env_snapshot': env_snapshot,
-                'stdout': stdout_sanitized,
-                'stderr': stderr_sanitized,
+                'logs': combined_logs if combined_logs else f"Job completed with exit code {result.returncode}"
             }
 
         except subprocess.TimeoutExpired:
             logger.error(f"Job {job_id} timed out")
             return {
-                'job_id': job_id,
-                'status': 'timeout',
-                'error': 'Job execution timed out'
+                'status': 'failed',
+                'exit_code': 124,
+                'logs': 'Error: Job execution timed out'
             }
         except Exception as e:
             logger.error(f"Job {job_id} failed with error: {e}")
             return {
-                'job_id': job_id,
-                'status': 'error',
-                'error': str(e)
+                'status': 'failed',
+                'exit_code': 1,
+                'logs': f"Error: {str(e)}"
             }
 
     def _sanitize_output(self, output: str) -> str:

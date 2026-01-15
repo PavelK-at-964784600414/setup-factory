@@ -5,6 +5,9 @@ registration_secret: your-agent-secret-here
 heartbeat_interval: 30
 job_timeout: 3600
 
+# Scripts directory - where agent looks for scripts to execute
+scripts_dir: ../scripts-repo-example/scripts
+
 # Output sanitization (remove sensitive data from logs)
 sanitize_output: true
 
