@@ -5,8 +5,10 @@ registration_secret: your-agent-secret-here
 heartbeat_interval: 30
 job_timeout: 3600
 
-# Scripts directory - where agent looks for scripts to execute
-scripts_dir: ../scripts-repo-example/scripts
+# Scripts directory - path to the scripts repository root
+# Script manifests have 'path' fields like "scripts/repro_deploy_example.ps1"
+# This should point to the repo root (the parent directory of 'scripts' folder)
+scripts_dir: ../scripts-repo-example
 
 # Output sanitization (remove sensitive data from logs)
 sanitize_output: true

@@ -105,9 +105,12 @@ class SetupFactoryAgent:
 
         try:
             # Get script file path from manifest
-            script_file = script_manifest.get('script_file', f'{script_id}.ps1')
-            script_dir = self.config.get('scripts_dir', 'scripts')
-            script_path = os.path.join(script_dir, script_file)
+            # Manifest 'path' field is relative to repo root (e.g., "scripts/repro_deploy_example.ps1")
+            script_file = script_manifest.get('path', f'scripts/{script_id}.ps1')
+            
+            # scripts_dir should point to the repo root (e.g., ../scripts-repo-example)
+            repo_root = self.config.get('scripts_dir', '../scripts-repo-example')
+            script_path = os.path.join(repo_root, script_file)
             
             # Check if script exists
             if not os.path.exists(script_path):
@@ -318,7 +321,9 @@ class SetupFactoryAgent:
                 jobs = response.json()
                 for job in jobs:
                     logger.info(f"Received job {job['id']} for script {job['script_id']}")
-                    result = self.execute_job(job['id'], job['script_id'], job['parameters'], job['script'])
+                    # Extract manifest from script object (job['script']['manifest'])
+                    script_manifest = job.get('script', {}).get('manifest', {})
+                    result = self.execute_job(job['id'], job['script_id'], job['parameters'], script_manifest)
                     # Report result back to API
                     self._report_job_result(job['id'], result)
         except Exception as e:
